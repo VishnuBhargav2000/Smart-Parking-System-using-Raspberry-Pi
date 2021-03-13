@@ -4,17 +4,20 @@ import time
 import asyncio
 import websockets
 
-# setting pins for pi
-TRIG = 7
-ECHO = 11
-GPIO.setmode(GPIO.BOARD)
+
 
 
 def GetInfo():
     # driver code for ultrasonic sensor thats connected to raspberry pi
     # returns a string (True/False) based on the distance data accquired from the sensor
     # True = if distance greater than a pre defined value, False if lesser. which indicates if a spot is taken or available
+    
+    # setting pins for pi
+    TRIG = 7
+    ECHO = 11
+    GPIO.setmode(GPIO.BOARD)
     isThere = True
+
     GPIO.setup(TRIG, GPIO.OUT)
     GPIO.setup(ECHO, GPIO.IN)
 
@@ -46,9 +49,7 @@ async def webserver(websocket, path):
         await websocket.send(GetInfo())  # waits for new connections then sends info to all connected clients
         await asyncio.sleep(0.5)
 
-    # driver code for websocket server
-
-
-start_server = websockets.serve(webserver, "192.168.0.8", 5678)
+# driver code for websocket server
+start_server = websockets.serve(webserver, "IP", HOST)
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
