@@ -4,18 +4,16 @@ import time
 import asyncio
 import websockets
 
-
-
+# setting pins for pi
+    TRIG = 7
+    ECHO = 11
+    GPIO.setmode(GPIO.BOARD)
 
 def GetInfo():
     # driver code for ultrasonic sensor thats connected to raspberry pi
     # returns a string (True/False) based on the distance data accquired from the sensor
     # True = if distance greater than a pre defined value, False if lesser. which indicates if a spot is taken or available
     
-    # setting pins for pi
-    TRIG = 7
-    ECHO = 11
-    GPIO.setmode(GPIO.BOARD)
     isThere = True
 
     GPIO.setup(TRIG, GPIO.OUT)
