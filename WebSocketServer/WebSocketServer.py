@@ -6,13 +6,13 @@ import websockets
 
 
 # setting pins for pi
-triggers = [pin1,pin2]  # Trigger pins (viable pins - [7,13])
-echos = [pin1,pin2]  # Echo pins  (viable pins - [11, 24]) 
-GPIO.setmode(GPIO.BOARD) 
+triggers = [7,13]  # Trigger pins
+echos = [11,24]  # Echo pins
+GPIO.setmode(GPIO.BOARD)
 GPIO.setwarnings(False)
 
 
-def GetDistance(TRIG,ECHO, carDistance):
+def GetDistance(TRIG,ECHO):
     # driver code for ultrasonic sensor thats connected to raspberry pi
     # returns a string (True/False) based on the distance data accquired from the sensor
     # True = if distance greater than a pre defined value, False if lesser. which indicates if a spot is taken or available
@@ -37,32 +37,52 @@ def GetDistance(TRIG,ECHO, carDistance):
     distance = pulse_duration * 17150
     distance = round(distance, 2)
 
-    if distance > carDistance:
-
+    if distance > 10:
         isThere = 'F'
     else:
         isThere = 'T'
 
     return isThere
 
-def GetInfo():
-    NumberOfSensors = 2 # number of Hc-SR04 modules used
-    carDistance = 5 # distance between Hc-SC04 module and a car parked in the respective parking lot
-    info = ''
-    for sensor in range(NumberOfSensors):
-        info += GetDistance(triggers[sensor],echos[sensor],carDistance)
-    return info
+class SPSDriverClass:
+    def __init__(self,echoPins, triggerPins):
+        self.lots = [0,0]
+        self.sensors = 2
+        self.tempInfo = ''
+        self.echoPins = echoPins
+        self.triggerPins = triggerPins
 
+    def parkingInfo(self):
+            self.tempInfo = ''
+            for sensor in range(self.sensors):
+                self.tempInfo += GetDistance(triggerPins[sensor],echoPins[sensor])
+
+    def reserveLot(self, lotId):
+        self.lots[lotId] = 1
+        time.sleep(20)
+        self.lots[lotId] = 0
+        
+
+    def getFinalValue(self):
+        self.parkingInfo()
+        for lot in self.lots:
+            if lot == 1:
+                self.tempInfo[lot] = 'T'
+        return self.tempInfo
 
 async def webserver(websocket, path):
     # sends info on the parking spots to all connected clients every half-second
     while True:
-        await websocket.send(GetInfo())  # waits for new connections then sends info to all connected clients
+        await websocket.send(SPS.getFinalValue()) # waits for new connections then sends info to all connected clients
+        reserveRequest = await websocket.recv()
+        print(type(reserveRequest))
         await asyncio.sleep(0.5)
 
+SPS = SPSDriverClass(triggers,echos)
 # driver code for websocket server
-start_server = websockets.serve(webserver, "IP", PORT)
+start_server = websockets.serve(webserver, "192.168.0.10", 5678)
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
+
 
 
