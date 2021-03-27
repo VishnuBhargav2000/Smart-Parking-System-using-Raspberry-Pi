@@ -3,6 +3,7 @@ import RPi.GPIO as GPIO
 import time
 import asyncio
 import websockets
+from datetime import datetime, timedelta 
 
 
 # setting pins for pi
@@ -45,44 +46,60 @@ def GetDistance(TRIG,ECHO):
     return isThere
 
 class SPSDriverClass:
-    def __init__(self,echoPins, triggerPins):
-        self.lots = [0,0]
+    def __init__(self,triggerPins, echoPins):
+        self.lots = [0,0,0,0,0,0]
+        self.reservedLots = {0: None, 1: None, 2: None, 3: None, 4: None, 5: None}
         self.sensors = 2
         self.tempInfo = ''
         self.echoPins = echoPins
         self.triggerPins = triggerPins
+        self.reserveTime = 1
+
 
     def parkingInfo(self):
             self.tempInfo = ''
             for sensor in range(self.sensors):
-                self.tempInfo += GetDistance(triggerPins[sensor],echoPins[sensor])
+                self.tempInfo += GetDistance(self.triggerPins[sensor],self.echoPins[sensor])
 
     def reserveLot(self, lotId):
         self.lots[lotId] = 1
-        time.sleep(20)
-        self.lots[lotId] = 0
+        self.reservedLots[lotId] = datetime.now() + timedelta(hours = self.reserveTime)
         
 
     def getFinalValue(self):
         self.parkingInfo()
-        for lot in self.lots:
-            if lot == 1:
-                self.tempInfo[lot] = 'T'
+        self.validateReservations()
+        for lot in range(len(self.lots)):
+            if self.lots[lot] == 1:
+                self.tempInfo = self.tempInfo[:lot]+'T'+self.tempInfo[lot+1:]
         return self.tempInfo
 
-async def webserver(websocket, path):
-    # sends info on the parking spots to all connected clients every half-second
+    def validateReservations(self):
+        now = datetime.now()
+        for slot in self.reservedLots.keys():
+            if now > reservedLots[slot]:
+                self.lots[slot] = 0
+
+async def handler(websocket, path):
     while True:
-        await websocket.send(SPS.getFinalValue()) # waits for new connections then sends info to all connected clients
+        await websocket.send(SPS.getFinalValue())
         reserveRequest = await websocket.recv()
-        print(type(reserveRequest))
+        if int(reserveRequest) != -1:
+            print(reserveRequest)
+            SPS.reserveLot(int(reserveRequest))
         await asyncio.sleep(0.5)
 
+
+
 SPS = SPSDriverClass(triggers,echos)
+
 # driver code for websocket server
-start_server = websockets.serve(webserver, "192.168.0.10", 5678)
+start_server = websockets.serve(handler, "192.168.0.9", 5678)
 asyncio.get_event_loop().run_until_complete(start_server)
 asyncio.get_event_loop().run_forever()
+
+
+
 
 
 
